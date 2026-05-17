@@ -40,8 +40,8 @@ type OptionState = 'idle' | 'loading' | 'success' | 'error';
 
 const PROFILE_URL = (username: string) =>
   typeof window !== 'undefined'
-    ? `${window.location.origin}/${username}`
-    : `https://commitpulse.vercel.app/${username}`;
+    ? `${window.location.origin}/dashboard/${username}`
+    : `https://commitpulse.vercel.app/dashboard/${username}`;
 
 export default function ShareSheet({ username, isOpen, onClose, exportData }: ShareSheetProps) {
   const [states, setStates] = useState<Record<string, OptionState>>({});
