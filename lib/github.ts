@@ -17,7 +17,7 @@ const GRAPHQL_TIMEOUT_MS = 8000; // 8s for GraphQL endpoint
 const REST_TIMEOUT_MS = 5000; // 5s for REST endpoints
 
 export async function fetchWithRetry(
-  url: string,
+  url: string | URL,
   options: RequestInit,
   attempt = 0,
   timeoutMs?: number
@@ -25,7 +25,7 @@ export async function fetchWithRetry(
   // Determine default timeout based on endpoint type if not explicitly provided.
   // GraphQL calls carry a larger payload and need a slightly longer window.
   const resolvedTimeout =
-    timeoutMs ?? (url.includes('graphql') ? GRAPHQL_TIMEOUT_MS : REST_TIMEOUT_MS);
+    timeoutMs ?? (url.toString().includes('graphql') ? GRAPHQL_TIMEOUT_MS : REST_TIMEOUT_MS);
 
   if (options.signal?.aborted) {
     throw new Error('AbortError');
