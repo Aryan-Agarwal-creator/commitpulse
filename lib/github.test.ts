@@ -1147,6 +1147,17 @@ describe('fetchOrgMembers', () => {
     expect(members[0]).toBe('alice');
     expect(members[1]).toBe('bob');
   });
+
+  it('encodes the organization name before using it in the members REST path', async () => {
+    vi.mocked(fetch).mockResolvedValue(mockResponse([]));
+
+    await fetchOrgMembers('octo/org');
+
+    expect(fetch).toHaveBeenCalledWith(
+      'https://api.github.com/orgs/octo%2Forg/members?per_page=50',
+      expect.objectContaining({ cache: 'no-store' })
+    );
+  });
 });
 
 describe('getOrgDashboardData', () => {

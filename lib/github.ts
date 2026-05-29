@@ -496,10 +496,14 @@ export async function fetchUserRepos(
  * Fetches members of an organization. (Used for Org Dashboards).
  */
 export async function fetchOrgMembers(orgName: string): Promise<string[]> {
-  const res = await fetchWithRetry(`${GITHUB_REST_URL}/orgs/${orgName}/members?per_page=50`, {
-    headers: getHeaders(),
-    cache: 'no-store',
-  });
+  const encodedOrgName = encodeURIComponent(orgName);
+  const res = await fetchWithRetry(
+    `${GITHUB_REST_URL}/orgs/${encodedOrgName}/members?per_page=50`,
+    {
+      headers: getHeaders(),
+      cache: 'no-store',
+    }
+  );
   if (!res.ok) throw new Error(`Failed to fetch members for org ${orgName}`);
   const members = (await res.json()) as { login: string }[];
   return members.map((m) => m.login);
