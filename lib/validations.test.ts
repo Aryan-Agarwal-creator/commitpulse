@@ -98,6 +98,18 @@ describe('streakParamsSchema user validation', () => {
 
     expect(result.success).toBe(true);
   });
+
+  it('should enforce a maximum length constraint of 39 characters for the user parameter', () => {
+    const invalidUser = 'a'.repeat(40);
+    const result = streakParamsSchema.safeParse({
+      user: invalidUser,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toMatch(/cannot exceed 39 characters/);
+    }
+  });
 });
 
 describe('streakParamsSchema', () => {

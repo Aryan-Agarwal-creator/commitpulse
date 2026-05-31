@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextRequest } from 'next/server';
 import { GET } from './route';
 
 // We only mock the two things that reach outside this process:
@@ -191,6 +192,18 @@ describe('GET /api/streak', () => {
       expect(response.status).toBe(400);
       const body = await response.json();
       expect(JSON.stringify(body)).toContain('cannot exceed 39 characters');
+    });
+
+    it('returns 400 Bad Request and details indicating the username cannot exceed 39 characters when using NextRequest', async () => {
+      const url = `http://localhost/api/streak?user=${'a'.repeat(40)}`;
+      const request = new NextRequest(url);
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toBe('Invalid parameters');
+      expect(body.details.fieldErrors.user[0]).toMatch(/cannot exceed 39 characters/);
     });
 
     it('returns 400 for invalid monthly badge dimensions', async () => {
