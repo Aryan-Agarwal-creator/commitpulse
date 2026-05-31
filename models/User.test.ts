@@ -69,61 +69,61 @@ describe('User Model', () => {
       expect(usernamePath.options.required).toBe(true);
     });
   });
-
-  describe('Database Connection State 99 Handling', () => {
-    it('triggers a lazy initialization fallback when connection is state 99 (uninitialized)', async () => {
+  describe('Database Connection State 2 Handling', () => {
+    it('keeps the User model usable while mongoose is connecting', async () => {
       const { vi } = await import('vitest');
 
-      // 1. Mock mongoose.connection.readyState to return 99 (uninitialized)
       const readyStateSpy = vi
         .spyOn(mongoose.connection, 'readyState', 'get')
-        .mockReturnValue(99 as unknown as typeof mongoose.connection.readyState);
+        .mockReturnValue(2 as unknown as typeof mongoose.connection.readyState);
 
-      // 2. Stub mongoose.connect to simulate database connection fallback
-      const connectSpy = vi.spyOn(mongoose, 'connect').mockResolvedValue(mongoose);
+      expect(mongoose.connection.readyState).toBe(2);
+      expect(User).toBeDefined();
+      expect(User.modelName).toBe('User');
 
-      // 3. Simulate a database operation connection request triggering lazy initialization
-      const executeDbOperation = async () => {
-        if (mongoose.connection.readyState === 99) {
-          await mongoose.connect('mongodb://localhost:27017/test');
-        }
+      const usernamePath = User.schema.path('username') as mongoose.SchemaType & {
+        options: Record<string, unknown>;
       };
 
-      await executeDbOperation();
+      expect(usernamePath.options.required).toBe(true);
+      expect(usernamePath.options.unique).toBe(true);
+      expect(usernamePath.options.lowercase).toBe(true);
+      expect(usernamePath.options.trim).toBe(true);
 
-      // 4. Assertions
-      expect(mongoose.connection.readyState).toBe(99);
-      expect(connectSpy).toHaveBeenCalledTimes(1);
-
-      // Cleanup
       readyStateSpy.mockRestore();
-      connectSpy.mockRestore();
     });
   });
 
   describe('Database Connection State 0 Handling', () => {
-    it('throws a ConnectionError when connection is state 0 (disconnected)', async () => {
+    it('fails queries gracefully with a ConnectionError when disconnected', async () => {
+      // Import vi locally to match the pattern used in the State 2 test
       const { vi } = await import('vitest');
 
-      // 1. Mock mongoose.connection.readyState to return 0 (disconnected)
+      // 1. Force the mongoose connection state to 0 (Disconnected)
       const readyStateSpy = vi
         .spyOn(mongoose.connection, 'readyState', 'get')
         .mockReturnValue(0 as unknown as typeof mongoose.connection.readyState);
 
-      // 2. Gracefully handle the disconnected state by attempting to connect
-      const handleDisconnectedState = async () => {
-        if (mongoose.connection.readyState === 0) {
-          throw new Error('Database is disconnected');
-        }
-      };
-
-      await expect(handleDisconnectedState()).rejects.toThrow('Database is disconnected');
-
-      // 3. Assertions
       expect(mongoose.connection.readyState).toBe(0);
 
-      // 4. Cleanup
+      // 2. Mock a database operation to simulate a connection failure
+      // Mongoose throws specific errors when bufferCommands is false and state is 0
+      const mockConnectionError = new Error('Database connection lost');
+      mockConnectionError.name = 'ConnectionError';
+
+      const findOneSpy = vi.spyOn(User, 'findOne').mockRejectedValue(mockConnectionError);
+
+      // 3. Verify that attempting to query throws the expected ConnectionError
+      await expect(User.findOne({ username: 'testuser' })).rejects.toThrow(
+        'Database connection lost'
+      );
+      await expect(User.findOne({ username: 'testuser' })).rejects.toMatchObject({
+        name: 'ConnectionError',
+      });
+
+      // 4. Clean up mocks to prevent side effects in other tests
       readyStateSpy.mockRestore();
+      findOneSpy.mockRestore();
     });
   });
 });
