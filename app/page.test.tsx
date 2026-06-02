@@ -22,6 +22,34 @@ vi.mock('@/components/DiscordButton', () => ({
   DiscordButton: () => <button data-testid="discord-button">Discord Button</button>,
 }));
 
+// Mock new UX components added in the UX improvement pass
+vi.mock('@/components/HowItWorks', () => ({
+  HowItWorks: () => <div data-testid="how-it-works">How It Works</div>,
+}));
+
+vi.mock('@/components/AnimatedStatsBanner', () => ({
+  AnimatedStatsBanner: () => <div data-testid="animated-stats-banner">Stats Banner</div>,
+}));
+
+vi.mock('@/components/UsernameInput', () => ({
+  UsernameInput: ({ value, onChange, onClear }: any) => (
+    <div>
+      <input
+        type="text"
+        placeholder="Enter GitHub Username"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        maxLength={39}
+      />
+      {value.length > 0 && (
+        <button onClick={onClear} aria-label="Clear input" type="button">
+          ×
+        </button>
+      )}
+    </div>
+  ),
+}));
+
 // next/image is no longer used — SVG preview is fetched via useEffect and
 // rendered inline. The mock below keeps the import from erroring if any
 // other test file still imports it.
@@ -154,6 +182,7 @@ vi.mock('framer-motion', () => ({
     ),
   },
   AnimatePresence: ({ children }: any) => <>{children}</>,
+  useInView: () => true,
 }));
 
 const mockRecentSearches = {
@@ -207,10 +236,11 @@ describe('LandingPage', () => {
   it('renders recent searches and applies a recent search when clicked', () => {
     render(<LandingPage />);
     const input = screen.getByPlaceholderText('Enter GitHub Username') as HTMLInputElement;
-    const octocatButton = screen.getByRole('button', { name: 'octocat' });
+    // Recent searches render as buttons with the username as the accessible label
+    const octocatButton = screen.getByRole('button', { name: 'Search again for octocat' });
 
     expect(octocatButton).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Clear' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Clear all recent searches' })).toBeDefined();
 
     fireEvent.click(octocatButton);
 
@@ -219,10 +249,10 @@ describe('LandingPage', () => {
 
   it('renders an empty state before a username is entered', () => {
     render(<LandingPage />);
-
-    expect(screen.getByText(/Enter a GitHub username above to instantly generate/i)).toBeDefined();
-    // No badge img should be present yet
-    expect(screen.queryByTestId('badge-img')).toBeNull();
+    // The sample badge pill label is always shown before user interaction
+    expect(screen.getByText(/Sample Preview/i)).toBeDefined();
+    // badge-img is always present (sample preview loads from production)
+    expect(screen.getByTestId('badge-img')).toBeDefined();
   });
 
   it('updates the username when input changes and shows the badge img', async () => {
@@ -250,7 +280,8 @@ describe('LandingPage', () => {
 
   it('disables the Watch Dashboard link when the username is empty', () => {
     render(<LandingPage />);
-    const dashboardLink = screen.getByRole('link', { name: 'Watch Dashboard' });
+    // next/link mock renders as <a data-testid="next-link">; select by text
+    const dashboardLink = screen.getByText('Watch Dashboard').closest('a')!;
 
     expect(dashboardLink.getAttribute('aria-disabled')).toBe('true');
     expect(dashboardLink.getAttribute('href')).toBe('/');
@@ -262,7 +293,7 @@ describe('LandingPage', () => {
 
     fireEvent.change(input, { target: { value: 'octocat' } });
 
-    const dashboardLink = screen.getByRole('link', { name: 'Watch Dashboard' });
+    const dashboardLink = screen.getByText('Watch Dashboard').closest('a')!;
     expect(dashboardLink.getAttribute('aria-disabled')).not.toBe('true');
     expect(dashboardLink.getAttribute('href')).toBe('/dashboard/octocat');
   });
@@ -272,7 +303,8 @@ describe('LandingPage', () => {
     const input = screen.getByPlaceholderText('Enter GitHub Username') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'jhasourav07' } });
 
-    const copyButton = screen.getByText('Copy Link').closest('button');
+    // CTA is now "Generate My Badge" — find the primary submit button
+    const copyButton = screen.getByRole('button', { name: /Generate badge for jhasourav07/i });
     fireEvent.click(copyButton!);
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
@@ -280,8 +312,8 @@ describe('LandingPage', () => {
     );
 
     await waitFor(() => {
-      // The button text should change to Copied
-      expect(screen.getByText('Copied')).toBeDefined();
+      // The button text should change to Copied!
+      expect(screen.getByText('Copied!')).toBeDefined();
       // The SuccessGuide should appear
       expect(screen.getByText('Your Monolith is Ready - Deploy It in 4 Steps')).toBeDefined();
     });
@@ -294,7 +326,7 @@ describe('LandingPage', () => {
     const input = screen.getByPlaceholderText('Enter GitHub Username') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'jhasourav07' } });
 
-    const copyButton = screen.getByText('Copy Link').closest('button');
+    const copyButton = screen.getByRole('button', { name: /Generate badge for jhasourav07/i });
     fireEvent.click(copyButton!);
 
     await waitFor(() => {
@@ -303,24 +335,29 @@ describe('LandingPage', () => {
       );
     });
 
-    expect(screen.queryByText('Copied')).toBeNull();
+    expect(screen.queryByText('Copied!')).toBeNull();
     expect(screen.queryByText('Your Monolith is Ready - Deploy It in 4 Steps')).toBeNull();
   });
 
   it('disables Copy Link button when username is empty', () => {
     render(<LandingPage />);
 
-    const copyButton = screen.getByText('Copy Link').closest('button');
+    // Primary button: aria-label "Enter a GitHub username to generate your badge" when disabled
+    const generateButton = screen.getByRole('button', {
+      name: /Enter a GitHub username to generate your badge/i,
+    });
 
-    expect(copyButton?.disabled).toBe(true);
+    expect((generateButton as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('does not copy link when username is empty', () => {
     render(<LandingPage />);
 
-    const copyButton = screen.getByText('Copy Link').closest('button');
+    const generateButton = screen.getByRole('button', {
+      name: /Enter a GitHub username to generate your badge/i,
+    });
 
-    fireEvent.click(copyButton!);
+    fireEvent.click(generateButton!);
 
     expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
   });
@@ -354,7 +391,7 @@ describe('LandingPage', () => {
     fireEvent.change(input, { target: { value: 'jhasourav07' } });
 
     // Trigger copy to show guide
-    const copyButton = screen.getByText('Copy Link').closest('button');
+    const copyButton = screen.getByRole('button', { name: /Generate badge for jhasourav07/i });
     fireEvent.click(copyButton!);
 
     await waitFor(() => {
@@ -374,6 +411,7 @@ describe('LandingPage', () => {
     render(<LandingPage />);
     const input = screen.getByPlaceholderText('Enter GitHub Username') as HTMLInputElement;
 
+    // UsernameInput mock shows "Clear input" button only when value.length > 0
     expect(screen.queryByLabelText('Clear input')).toBeNull();
 
     fireEvent.change(input, { target: { value: 'a' } });
@@ -407,12 +445,15 @@ describe('LandingPage', () => {
     render(<LandingPage />);
     const input = screen.getByPlaceholderText('Enter GitHub Username') as HTMLInputElement;
 
-    await act(async () => {
-      fireEvent.change(input, { target: { value: 'invalid_user' } });
+    fireEvent.change(input, { target: { value: 'invalid_user' } });
+
+    // Wait for the debounced username to settle and the badge img to point at the user's URL
+    await waitFor(() => {
+      const img = screen.getByTestId('badge-img') as HTMLImageElement;
+      expect(img.src).toContain('user=invalid_user');
     });
 
-    // Badge img renders; simulate the browser failing to load it (e.g. API returned 400)
-    await waitFor(() => screen.getByTestId('badge-img'));
+    // Simulate the browser failing to load the badge image
     await act(async () => {
       fireEvent.error(screen.getByTestId('badge-img'));
     });
@@ -429,12 +470,15 @@ describe('LandingPage', () => {
     render(<LandingPage />);
     const input = screen.getByPlaceholderText('Enter GitHub Username') as HTMLInputElement;
 
-    await act(async () => {
-      fireEvent.change(input, { target: { value: 'octocat' } });
+    fireEvent.change(input, { target: { value: 'octocat' } });
+
+    // Wait for the debounced username to settle and the badge img to point at the user's URL
+    await waitFor(() => {
+      const img = screen.getByTestId('badge-img') as HTMLImageElement;
+      expect(img.src).toContain('user=octocat');
     });
 
     // Simulate the browser failing to load the badge image
-    await waitFor(() => screen.getByTestId('badge-img'));
     await act(async () => {
       fireEvent.error(screen.getByTestId('badge-img'));
     });

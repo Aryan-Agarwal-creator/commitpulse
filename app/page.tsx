@@ -171,9 +171,13 @@ export default function LandingPage() {
   // Whether to show sample (torvalds) or user's actual badge
   const showSample = !hasUsername;
 
-  const activeBadgeUser = showSample ? SAMPLE_USERNAME : debouncedUsername;
-  const badgeUrl = `/api/streak?user=${activeBadgeUser}`;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://commitpulse.vercel.app';
+  const activeBadgeUser = showSample ? SAMPLE_USERNAME : debouncedUsername;
+  // Sample always loads from production so it works in local dev without GITHUB_TOKEN.
+  // The user's own badge uses the local API endpoint as expected.
+  const badgeUrl = showSample
+    ? `https://commitpulse.vercel.app/api/streak?user=${SAMPLE_USERNAME}`
+    : `/api/streak?user=${debouncedUsername}`;
   const markdown = `![CommitPulse](${siteUrl}/api/streak?user=${trimmedUsername})`;
 
   // Derived — automatically false when debouncedUsername changes
