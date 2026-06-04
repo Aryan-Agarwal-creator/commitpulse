@@ -20,6 +20,7 @@ import { FeatureCard, FeatureCardsSection } from '@/components/FeatureCards';
 import { DiscordButton } from '@/components/DiscordButton';
 
 import { WallOfLove } from '@/components/WallOfLove';
+import { validateGitHubUsername } from '@/lib/validations';
 
 /** Well-known GitHub accounts used as sample demo chips */
 const DEMO_USERNAMES = ['torvalds', 'gaearon', 'vercel', 'sindresorhus'];
@@ -103,11 +104,222 @@ const Icons = {
   ),
 };
 
+function CountUp({ value, duration = 1000 }: { value: number; duration?: number }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const start = 0;
+    const end = value;
+    if (start === end) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCount(end);
+      return;
+    }
+
+    const totalMilliseconds = duration;
+    const startTime = Date.now();
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / totalMilliseconds, 1);
+      const easedProgress = progress * (2 - progress);
+      const current = Math.floor(easedProgress * end);
+
+      setCount(current);
+
+      if (progress >= 1) {
+        clearInterval(timer);
+        setCount(end);
+      }
+    }, 16);
+
+    return () => clearInterval(timer);
+  }, [value, duration]);
+
+  return <span>{count.toLocaleString()}</span>;
+}
+
+function SampleBadgePreview() {
+  const cols = 14;
+  const rows = 7;
+  const towers: { col: number; row: number; height: number; isActive: boolean }[] = [];
+
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < rows; r++) {
+      const hash = (c * 7 + r * 13) % 19;
+      const isActive = hash % 3 === 0 && (c + r) % 2 === 0;
+      const height = isActive ? Math.round(15 + hash * 3.5) : 4;
+      towers.push({ col: c, row: r, height, isActive });
+    }
+  }
+
+  const originX = 300;
+  const originY = 110;
+  const tileHalfWidth = 16;
+  const tileHalfHeight = 10;
+
+  return (
+    <div className="w-full flex flex-col items-center justify-center gap-6 py-6 relative">
+      <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 opacity-30 blur-xl" />
+
+      <svg
+        viewBox="0 0 600 320"
+        className="w-full max-w-[700px] h-auto drop-shadow-[0_20px_40px_rgba(0,0,0,0.15)] dark:drop-shadow-[0_20px_40px_rgba(0,0,0,0.4)] cp-svg-container relative z-10"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <defs>
+          <linearGradient id="sample-tower-grad" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stopColor="#0d1117" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="#10b981" stopOpacity="0.8" />
+          </linearGradient>
+          <linearGradient id="sample-tower-grad-alt" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stopColor="#0d1117" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.8" />
+          </linearGradient>
+          <filter id="sample-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        <rect
+          width="600"
+          height="320"
+          rx="16"
+          fill="#0d1117"
+          stroke="rgba(255,255,255,0.05)"
+          strokeWidth="1"
+        />
+
+        <text
+          x="300"
+          y="45"
+          textAnchor="middle"
+          fill="#c9d1d9"
+          style={{
+            fontFamily: '"Syncopate", sans-serif',
+            fontSize: '12px',
+            letterSpacing: '6px',
+            fontWeight: 400,
+            opacity: 0.6,
+          }}
+        >
+          PREVIEW MONOLITH
+        </text>
+
+        <line
+          x1="100"
+          y1="65"
+          x2="500"
+          y2="65"
+          stroke="rgba(16,185,129,0.2)"
+          strokeWidth="2"
+          filter="url(#sample-glow)"
+        >
+          <animate attributeName="y1" values="65;240;65" dur="6s" repeatCount="indefinite" />
+          <animate attributeName="y2" values="65;240;65" dur="6s" repeatCount="indefinite" />
+        </line>
+        <line x1="100" y1="65" x2="500" y2="65" stroke="rgba(16,185,129,0.4)" strokeWidth="1">
+          <animate attributeName="y1" values="65;240;65" dur="6s" repeatCount="indefinite" />
+          <animate attributeName="y2" values="65;240;65" dur="6s" repeatCount="indefinite" />
+        </line>
+
+        <g transform="translate(0, 20)">
+          {towers.map((t, idx) => {
+            const x = originX + (t.col - t.row) * tileHalfWidth;
+            const y = originY + (t.col + t.row) * tileHalfHeight;
+            const h = t.height;
+
+            const leftPath = `M 0 ${10 - h} L 0 10 L -16 0 L -16 ${-h} Z`;
+            const rightPath = `M 0 ${10 - h} L 0 10 L 16 0 L 16 ${-h} Z`;
+            const topPath = `M 0 ${-h} L 16 ${10 - h} L 0 ${20 - h} L -16 ${10 - h} Z`;
+
+            const grad =
+              (t.col + t.row) % 3 === 0 ? 'url(#sample-tower-grad-alt)' : 'url(#sample-tower-grad)';
+            const topColor = (t.col + t.row) % 3 === 0 ? '#06b6d4' : '#10b981';
+
+            if (!t.isActive) {
+              return (
+                <g key={idx} transform={`translate(${x}, ${y})`}>
+                  <path
+                    d={leftPath}
+                    fill="none"
+                    stroke="rgba(255,255,255,0.08)"
+                    strokeWidth="0.5"
+                  />
+                  <path
+                    d={rightPath}
+                    fill="none"
+                    stroke="rgba(255,255,255,0.08)"
+                    strokeWidth="0.5"
+                  />
+                  <path d={topPath} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="0.8" />
+                </g>
+              );
+            }
+
+            return (
+              <g key={idx} transform={`translate(${x}, ${y})`}>
+                <path d={leftPath} fill={grad} fillOpacity="0.6" />
+                <path d={rightPath} fill={grad} fillOpacity="0.75" />
+                <path d={topPath} fill={topColor} fillOpacity="0.85" />
+              </g>
+            );
+          })}
+        </g>
+
+        <path
+          d={`M ${originX - 14 * 16} ${originY + 14 * 10 + 20} L ${originX} ${originY + 20} L ${originX + 14 * 16} ${originY + 14 * 10 + 20}`}
+          fill="none"
+          stroke="rgba(255,255,255,0.05)"
+          strokeWidth="1"
+        />
+      </svg>
+
+      <div className="text-center max-w-md relative z-10 px-4">
+        <h4 className="text-sm font-bold text-zinc-200 uppercase tracking-wider mb-2">
+          Interactive Monolith Preview
+        </h4>
+        <p className="text-xs text-zinc-400 leading-relaxed">
+          CommitPulse compiles your public GitHub contribution history into a customizable 3D city.
+          The taller the towers, the more you committed that day. Enter a GitHub username above to
+          instantly generate your streak badge.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+interface UserDetails {
+  exists: boolean;
+  login: string;
+  name: string | null;
+  avatar_url: string;
+  public_repos: number;
+  stats: {
+    currentStreak: number;
+    longestStreak: number;
+    totalContributions: number;
+  };
+}
+
 export default function LandingPage() {
+  const getDisplayUsername = (name: string) => {
+    if (name.includes('github.com/')) {
+      const parts = name.split('github.com/');
+      if (parts[1]) {
+        const pathParts = parts[1].split('?')[0].split('/');
+        const userPart = pathParts.find((p) => p.trim().length > 0);
+        if (userPart) return userPart;
+      }
+    }
+    return name;
+  };
+
   const [username, setUsername] = useState('');
+  const [instantUsername, setInstantUsername] = useState('');
   const [copied, setCopied] = useState(false);
-  // Track which username's badge result we have. Derived booleans auto-reset
-  // when debouncedUsername changes — no useEffect needed.
+
   const [badgeResult, setBadgeResult] = useState<{
     username: string;
     status: 'loaded' | 'error';
@@ -144,7 +356,6 @@ export default function LandingPage() {
     () => {
       if (!heroRef.current) return;
 
-      // Text fly-up animation
       gsap.to('.hero-text', {
         y: 0,
         opacity: 1,
@@ -153,7 +364,6 @@ export default function LandingPage() {
         delay: 0.15,
       });
 
-      // Animate the background gradient of the word "Contribution" infinitely
       gsap.to('.contribution-text', {
         backgroundPosition: '300% 50%',
         duration: 8,
@@ -166,7 +376,6 @@ export default function LandingPage() {
 
   const trimmedUsername = username.trim();
   const debouncedUsername = useDebounce(trimmedUsername, 500);
-  const hasUsername = debouncedUsername.length > 0;
 
   // Whether to show sample (torvalds) or user's actual badge
   const showSample = !hasUsername;
@@ -179,6 +388,17 @@ export default function LandingPage() {
     ? `https://commitpulse.vercel.app/api/streak?user=${SAMPLE_USERNAME}`
     : `/api/streak?user=${debouncedUsername}`;
   const markdown = `![CommitPulse](${siteUrl}/api/streak?user=${trimmedUsername})`;
+  const DownloadSVG = () => {
+    const link = document.createElement('a');
+    link.href = badgeUrl;
+    link.download = `${debouncedUsername}-commitpulse-badge.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const badgeLoaded = badgeResult?.username === previewUsername && badgeResult?.status === 'loaded';
+  const badgeError = badgeResult?.username === previewUsername && badgeResult?.status === 'error';
 
   // Derived — automatically false when debouncedUsername changes
   const badgeLoaded = badgeResult?.username === activeBadgeUser && badgeResult?.status === 'loaded';
@@ -208,6 +428,56 @@ export default function LandingPage() {
     }, 80);
     setTimeout(() => setCopied(false), 50000);
   };
+
+  const selectDemoUser = (name: string) => {
+    setUsername(name);
+    setInstantUsername(name);
+  };
+
+  const handleGenerate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (trimmedUsername.length > 0) {
+      setInstantUsername(trimmedUsername);
+      trackUser(trimmedUsername);
+      addSearch(trimmedUsername);
+    }
+  };
+
+  // 4 Premium statistics cards schema
+  const statsData = [
+    {
+      label: 'Current Streak',
+      value: userDetails?.stats?.currentStreak ?? (previewUsername ? 0 : 12),
+      icon: Flame,
+      color: 'from-orange-500/20 to-red-500/20 text-orange-400 border-orange-500/20',
+      glow: 'shadow-orange-500/10',
+      unit: 'days',
+    },
+    {
+      label: 'Longest Streak',
+      value: userDetails?.stats?.longestStreak ?? (previewUsername ? 0 : 34),
+      icon: Trophy,
+      color: 'from-amber-500/20 to-yellow-500/20 text-amber-400 border-yellow-500/20',
+      glow: 'shadow-yellow-500/10',
+      unit: 'days',
+    },
+    {
+      label: 'Contributions',
+      value: userDetails?.stats?.totalContributions ?? (previewUsername ? 0 : 420),
+      icon: GitCommit,
+      color: 'from-emerald-500/20 to-teal-500/20 text-emerald-400 border-emerald-500/20',
+      glow: 'shadow-emerald-500/10',
+      unit: 'commits',
+    },
+    {
+      label: 'Repositories',
+      value: userDetails?.public_repos ?? (previewUsername ? 0 : 24),
+      icon: Folder,
+      color: 'from-cyan-500/20 to-blue-500/20 text-cyan-400 border-cyan-500/20',
+      glow: 'shadow-cyan-500/10',
+      unit: 'repos',
+    },
+  ];
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-transparent font-sans text-black dark:text-white selection:bg-black/20 dark:selection:bg-white/20">
