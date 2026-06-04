@@ -5,8 +5,6 @@
  * Validates query strings before sending to prevent malicious input.
  */
 
-import { parse, validate, buildSchema } from 'graphql';
-
 export interface QueryValidationResult {
   valid: boolean;
   errors?: string[];
@@ -34,37 +32,27 @@ export function isValidGraphQLQuery(queryString: string): QueryValidationResult 
     }
   }
 
+  // Basic GraphQL query structure validation
+  if (!queryString.includes('{') || !queryString.includes('}')) {
+    return { valid: false, errors: ['Invalid GraphQL query structure'] };
+  }
+
   try {
-    const ast = parse(queryString);
-    if (!ast) {
-      return { valid: false, errors: ['Invalid GraphQL syntax'] };
+    // Validate JSON-like structure (GraphQL queries contain nested objects)
+    const openBraces = (queryString.match(/{/g) || []).length;
+    const closeBraces = (queryString.match(/}/g) || []).length;
+
+    if (openBraces !== closeBraces) {
+      return { valid: false, errors: ['Mismatched braces in GraphQL query'] };
     }
+
     return { valid: true };
-  } catch (error) {
-    return { valid: false, errors: [error instanceof Error ? error.message : 'Invalid GraphQL query'] };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Invalid GraphQL query';
+    return { valid: false, errors: [message] };
   }
 }
 
-export function validateQueryBeforeSending(query: string, schema?: any): QueryValidationResult {
-  const syntaxValidation = isValidGraphQLQuery(query);
-  if (!syntaxValidation.valid) {
-    return syntaxValidation;
-  }
-
-  if (schema) {
-    try {
-      const ast = parse(query);
-      const errors = validate(schema, ast);
-      if (errors.length > 0) {
-        return {
-          valid: false,
-          errors: errors.map((e) => e.message),
-        };
-      }
-    } catch (error) {
-      return { valid: false, errors: [error instanceof Error ? error.message : 'Schema validation failed'] };
-    }
-  }
-
-  return { valid: true };
+export function validateQueryBeforeSending(query: string): QueryValidationResult {
+  return isValidGraphQLQuery(query);
 }
