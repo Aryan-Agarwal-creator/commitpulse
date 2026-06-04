@@ -27,7 +27,7 @@ const resourceLinks: FooterLink[] = [
     isExternal: true,
   },
   {
-    label: 'Repository',
+    label: 'GitHub Repository',
     href: 'https://github.com/JhaSourav07/commitpulse',
     isExternal: true,
   },
