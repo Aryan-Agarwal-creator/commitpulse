@@ -46,11 +46,11 @@ export default function Heatmap({
   const validData = data.filter((day) => {
     const dayDate = new Date(day.date);
     const today = new Date();
-    
+
     // Normalize times to strictly compare dates
     dayDate.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
-    
+
     return dayDate <= today;
   });
 
@@ -82,7 +82,7 @@ export default function Heatmap({
     index: number
   ) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    
+
     // 3. Ensure streak calculation also uses validData
     const streak = getLocalActiveStreak(validData, index);
 
