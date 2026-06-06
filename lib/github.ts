@@ -1134,12 +1134,16 @@ export function buildInsights(
   return insights;
 }
 
-export function buildCommitClock(allDays: ContributionDay[]) {
+export function buildCommitClock(allDays: ContributionDay[], timezone: string = 'UTC') {
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const dayTotals = new Array(7).fill(0);
   for (const day of allDays) {
-    const dow = new Date(day.date).getUTCDay();
-    dayTotals[dow] += day.contributionCount;
+    const dowStr = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      weekday: 'short',
+    }).format(new Date(day.date + 'T12:00:00Z'));
+    const dowIndex = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(dowStr);
+    if (dowIndex !== -1) dayTotals[dowIndex] += day.contributionCount;
   }
   return dayNames.map((name, i) => ({ day: name, commits: dayTotals[i] }));
 }
@@ -1547,7 +1551,8 @@ export async function getFullDashboardData(username: string, options: FetchOptio
 export async function getWrappedData(
   username: string,
   year?: string,
-  options?: FetchOptions
+  options?: FetchOptions,
+  timezone: string = 'UTC'
 ): Promise<import('../types/dashboard').WrappedStats> {
   const trimmedYear = typeof year === 'string' ? year.trim() : '';
   const fallbackYear = new Date().getFullYear().toString();
@@ -1586,8 +1591,11 @@ export async function getWrappedData(
     Object.entries(monthTotals).sort((a, b) => b[1] - a[1])[0]?.[0] ?? `${normalizedYear}-01`;
 
   const weekendDays = allDays.filter((d) => {
-    const dow = new Date(d.date).getUTCDay();
-    return dow === 0 || dow === 6;
+    const dowStr = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      weekday: 'short',
+    }).format(new Date(d.date + 'T12:00:00Z'));
+    return dowStr === 'Sat' || dowStr === 'Sun';
   });
   const weekendTotal = weekendDays.reduce((sum, d) => sum + d.contributionCount, 0);
   const weekendRatio =
