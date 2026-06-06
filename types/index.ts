@@ -157,6 +157,8 @@ export interface MonthlyStats {
 export interface BadgeParams {
   /** GitHub username whose contribution data will be fetched and rendered. Required. */
   user: string;
+
+  label?: boolean;
   /** GitHub username of the opponent to compare against. */
   versus?: string;
 

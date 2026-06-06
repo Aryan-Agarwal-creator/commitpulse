@@ -326,22 +326,25 @@ function renderStatsSection(
   stats: StreakStats,
   labels: BadgeLabels,
   s: Scaler,
-  params: BadgeParams
+  params: BadgeParams,
+  yOffset = 0
 ): string {
   const totalLabel =
     params.mode === 'loc' ? 'TOTAL LINES OF CODE (EST.)' : labels.ANNUAL_SYNC_TOTAL;
   const glowAttr = params.glow !== false ? ' filter="url(#glow)"' : '';
 
   return `
-  <g transform="translate(${s(100)}, ${s(340)})" text-anchor="middle">
+  <g transform="translate(${s(100)}, ${s(340 + yOffset)})" text-anchor="middle">
     <text class="label">${labels.CURRENT_STREAK}</text>
     <text y="${s(40)}" class="stats"${glowAttr}>${stats.currentStreak}</text>
   </g>
-  <g transform="translate(${s(300)}, ${s(340)})" text-anchor="middle">
+
+  <g transform="translate(${s(300)}, ${s(340 + yOffset)})" text-anchor="middle">
     <text class="label">${totalLabel}</text>
     <text y="${s(40)}" class="total-val"${glowAttr}>${stats.totalContributions}</text>
   </g>
-  <g transform="translate(${s(500)}, ${s(340)})" text-anchor="middle">
+
+  <g transform="translate(${s(500)}, ${s(340 + yOffset)})" text-anchor="middle">
     <text class="label">${labels.PEAK_STREAK}</text>
     <text y="${s(40)}" class="stats">${stats.longestStreak}</text>
   </g>`;
@@ -568,13 +571,25 @@ function renderFooter(
   isWinner?: boolean
 ): string {
   const s = createScaler(sf);
-  const titleText = `${truncateUsername(safeUser).toUpperCase()}${isWinner ? ' 👑' : ''}${params.isOfflineFallback ? '<tspan fill="#ff9f43" font-size="10px" font-weight="bold"> [STALE CACHE]</tspan>' : ''}`;
+  const statsOffset = params.label === false ? -40 : 0;
+
+  const titleText = `${truncateUsername(safeUser).toUpperCase()}${isWinner ? ' 👑' : ''}${
+    params.isOfflineFallback
+      ? '<tspan fill="#ff9f43" font-size="10px" font-weight="bold"> [STALE CACHE]</tspan>'
+      : ''
+  }`;
+
   return `
-  ${!params.hide_stats ? renderStatsSection(stats, labels, s, params) : ''}
-  ${!params.hide_title ? `<text x="${s(300)}" y="${s(50)}" text-anchor="middle" class="title">${titleText}</text>` : ''}
+  ${!params.hide_stats ? renderStatsSection(stats, labels, s, params, statsOffset) : ''}
+
+  ${
+    !params.hide_title && params.label !== false
+      ? `<text x="${s(300)}" y="${s(50)}" text-anchor="middle" class="title">${titleText}</text>`
+      : ''
+  }
   <rect
     x="${s(100)}"
-    y="${s(80)}"
+    y="${s(80 + statsOffset)}"
     width="${s(400)}"
     height="${s(1)}"
     class="cp-accent-fill scan-line"
@@ -739,9 +754,10 @@ export function generateSVG(
   const sf = getSizeScale(params.size);
   const radius = sanitizeRadius(params.radius, 8) * sf;
   const labels = getLabels(params.lang);
+  const labelVisible = params.label !== false;
   const W = Math.round(SVG_WIDTH * sf);
-  const H = Math.round(SVG_HEIGHT * sf);
-
+  const H = Math.round((labelVisible ? SVG_HEIGHT : SVG_HEIGHT - 40) * sf);
+  const yOffset = params.label === false ? -40 : 0;
   const towerData = scaleTowerData(
     computeTowers(calendar, params.scale, stats.todayDate, params.mode),
     sf
@@ -772,7 +788,7 @@ export function generateSVG(
   ${renderHeader(safeUser, stats, sf, params, safeId)}
   ${renderStyle(selectedFont, statsFont, googleFontsImport, text, mainAccentHex, sf, bg, params.entrance || 'rise')}
   <rect width="${W}" height="${H}" rx="${radius}" fill="${params.hideBackground ? 'transparent' : bg}" ${borderAttr} />
-  <g id="cp-towers" style="transform-origin: center; transform-box: fill-box;" transform="translate(0, ${Math.round(20 * sf)})">${towers}</g>
+  <g id="cp-towers" style="transform-origin: center; transform-box: fill-box;" transform="translate(0, ${Math.round((20 + yOffset) * sf)})">${towers}</g>
   ${renderIsometricLabels(calendar, params, text, sf)}
   ${renderFooter(stats, params, labels, safeUser, mainAccentHex, sf)}
   ${renderMilestoneBadges(stats, params, sf)}
@@ -802,7 +818,9 @@ function generateAutoThemeSVG(
   const radius = sanitizeRadius(params.radius, 8) * sf;
   const labels = getLabels(params.lang);
   const W = Math.round(SVG_WIDTH * sf);
-  const H = Math.round(SVG_HEIGHT * sf);
+  const labelVisible = params.label !== false;
+  const H = Math.round((labelVisible ? SVG_HEIGHT : SVG_HEIGHT - 40) * sf);
+  const yOffset = params.label === false ? -40 : 0;
   const towerData = scaleTowerData(
     computeTowers(calendar, params.scale, stats.todayDate, params.mode),
     sf
@@ -860,13 +878,13 @@ function generateAutoThemeSVG(
   </style>
 
   <rect width="${W}" height="${H}" rx="${radius}" ${params.hideBackground ? 'fill="transparent"' : 'class="cp-bg-fill"'} />
-  <g id="cp-towers" style="transform-origin: center; transform-box: fill-box;" transform="translate(0, ${s(20)})">
+  <g id="cp-towers" style="transform-origin: center; transform-box: fill-box;" transform="translate(0, ${s(20 + yOffset)})">
     ${towers}
   </g>
   ${renderIsometricLabels(calendar, params, 'var(--cp-text)', sf)}
   ${!params.hide_stats ? renderStatsSection(stats, labels, s, params) : ''}
 ${
-  !params.hide_title
+  !params.hide_title && params.label !== false
     ? `<text x="${s(300)}" y="${s(50)}" text-anchor="middle" class="title">${truncateUsername(safeUser).toUpperCase()}${params.isOfflineFallback ? '<tspan fill="#ff9f43" font-size="10px" font-weight="bold"> [STALE CACHE]</tspan>' : ''}</text>`
     : ''
 }
