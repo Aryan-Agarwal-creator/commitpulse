@@ -16,12 +16,7 @@ import {
 } from '@/lib/svg/generator';
 import { generateConstellationSVG } from '@/lib/svg/constellation';
 import { getSecondsUntilUTCMidnight, getSecondsUntilMidnightInTimezone } from '@/utils/time';
-import type {
-  BadgeParams,
-  ContributionCalendar,
-  RepoContribution,
-  ExtendedContributionData,
-} from '@/types';
+import type { BadgeParams, RepoContribution, ExtendedContributionData } from '@/types';
 import { themes } from '@/lib/svg/themes';
 import { streakParamsSchema } from '@/lib/validations';
 import { sanitizeHexColor, sanitizeRadius } from '@/lib/svg/sanitizer';
