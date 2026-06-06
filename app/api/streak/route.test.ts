@@ -1913,4 +1913,49 @@ describe('GET /api/streak', () => {
       expect(body).toContain('<svg');
     });
   });
+
+  describe('date parameter validation (Variation 2)', () => {
+    it('returns 400 Bad Request when ?date= is "2026-15-40" (malformed ISO 8601)', async () => {
+      // Arrange: month 15 and day 40 are both impossible calendar values
+      const response = await GET(makeRequest({ user: 'octocat', date: '2026-15-40' }));
+
+      // Assert: endpoint must reject before calling GitHub API
+      expect(response.status).toBe(400);
+    });
+
+    it('returns a structured error body containing \'Invalid "date" format\' for "2026-15-40"', async () => {
+      const response = await GET(makeRequest({ user: 'octocat', date: '2026-15-40' }));
+      const body = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(body.error).toBe('Invalid parameters');
+      expect(body.details.fieldErrors.date[0]).toContain('Invalid "date" format');
+    });
+
+    it('does not call fetchGitHubContributions when ?date= is malformed', async () => {
+      await GET(makeRequest({ user: 'octocat', date: '2026-15-40' }));
+
+      expect(fetchGitHubContributions).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 for ?date= with invalid month value "2026-13-01"', async () => {
+      const response = await GET(makeRequest({ user: 'octocat', date: '2026-13-01' }));
+      const body = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(body.details.fieldErrors.date[0]).toContain('Invalid "date" format');
+    });
+
+    it('returns 400 for a freeform string ?date=not-a-date', async () => {
+      const response = await GET(makeRequest({ user: 'octocat', date: 'not-a-date' }));
+
+      expect(response.status).toBe(400);
+    });
+
+    it('returns 200 for a valid ?date= in ISO 8601 format', async () => {
+      const response = await GET(makeRequest({ user: 'octocat', date: '2026-05-30' }));
+
+      expect(response.status).toBe(200);
+    });
+  });
 });
