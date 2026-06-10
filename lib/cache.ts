@@ -238,7 +238,7 @@ export class DistributedCache<T> {
     }
   }
 
-  async get(key: string): Promise<T | null> {
+  async get(key: string, localTtlMs: number = 5 * 60 * 1000): Promise<T | null> {
     if (!this.useRedis) {
       return this.localCache.get(key);
     }
@@ -270,7 +270,7 @@ export class DistributedCache<T> {
 
       const parsed = JSON.parse(data.result) as T;
       // Backfill local cache so subsequent requests in this instance are instant
-      this.localCache.set(key, parsed, 5 * 60 * 1000);
+      this.localCache.set(key, parsed, localTtlMs);
       return parsed;
     } catch (err) {
       console.error(`[DistributedCache] GET failed for key "${key}":`, err);
@@ -468,7 +468,7 @@ return c`;
     shouldFetch?: (cached: T) => boolean
   ): Promise<T> {
     // Attempt to retrieve an existing value before triggering a refresh.
-    const cached = await this.get(key);
+    const cached = await this.get(key, ttlMs);
 
     if (cached !== null && (!shouldFetch || !shouldFetch(cached))) {
       return cached;
@@ -562,7 +562,7 @@ return c`;
         const backoffMs = Math.min(BASE_POLL_MS * 2 ** attempt, MAX_POLL_MS);
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
         attempt++;
-        const doubleCheck = await this.get(key);
+        const doubleCheck = await this.get(key, ttlMs);
 
         // Another instance may have already populated the cache while waiting.
         if (doubleCheck !== null && (!shouldFetch || !shouldFetch(doubleCheck))) {
