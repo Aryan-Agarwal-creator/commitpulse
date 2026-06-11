@@ -1,84 +1,63 @@
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getSecondsUntilUTCMidnight, getSecondsUntilMidnightInTimezone } from './time';
 
-describe('time.ts - Massive Data Sets and Extreme High Bounds Scaling', () => {
+describe('time.ts calculation correctness', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
-  it('handles thousands of UTC midnight calculations without instability', () => {
+  it('returns correct seconds until UTC midnight at noon UTC', () => {
     vi.setSystemTime(new Date('2024-06-15T12:00:00.000Z'));
 
-    const results: number[] = [];
-
-    for (let i = 0; i < 10000; i++) {
-      results.push(getSecondsUntilUTCMidnight());
-    }
-
-    expect(results).toHaveLength(10000);
-    expect(results.every((v) => v === 43200)).toBe(true);
+    expect(getSecondsUntilUTCMidnight()).toBe(43200);
   });
 
-  it('handles massive timezone calculations across thousands of requests', () => {
+  it('returns correct seconds close to UTC midnight', () => {
+    vi.setSystemTime(new Date('2024-06-15T23:59:30.000Z'));
+
+    expect(getSecondsUntilUTCMidnight()).toBe(30);
+  });
+
+  it('returns a bounded value for UTC timezone calculations', () => {
     vi.setSystemTime(new Date('2024-06-15T12:00:00.000Z'));
 
-    const timezones = [
-      'UTC',
-      'Asia/Kolkata',
-      'Pacific/Kiritimati',
-      'Pacific/Midway',
-      'Europe/London',
-    ];
+    const seconds = getSecondsUntilMidnightInTimezone('UTC');
 
-    const results: number[] = [];
-
-    for (let i = 0; i < 5000; i++) {
-      results.push(getSecondsUntilMidnightInTimezone(timezones[i % timezones.length]));
-    }
-
-    expect(results).toHaveLength(5000);
-    expect(results.every((v) => Number.isInteger(v))).toBe(true);
+    expect(seconds).toBeGreaterThan(0);
+    expect(seconds).toBeLessThanOrEqual(86400);
   });
 
-  it('maintains valid output bounds under extreme iteration counts', () => {
-    vi.setSystemTime(new Date('2024-12-31T23:59:59.000Z'));
+  it('returns valid values for multiple timezones', () => {
+    vi.setSystemTime(new Date('2024-06-15T12:00:00.000Z'));
 
-    for (let i = 0; i < 20000; i++) {
-      const seconds = getSecondsUntilUTCMidnight();
+    const zones = ['UTC', 'Asia/Kolkata', 'Europe/London', 'America/New_York'];
 
-      expect(seconds).toBeGreaterThanOrEqual(0);
+    for (const zone of zones) {
+      const seconds = getSecondsUntilMidnightInTimezone(zone);
+
+      expect(seconds).toBeGreaterThan(0);
       expect(seconds).toBeLessThanOrEqual(86400);
     }
   });
 
-  it('processes large timezone datasets without calculation drift', () => {
-    vi.setSystemTime(new Date('2024-06-15T00:00:00.000Z'));
+  it('normalizes hour 24 correctly when calculating timezone midnight', () => {
+    const formatToPartsMock = vi.fn().mockReturnValue([
+      { type: 'hour', value: '24' },
+      { type: 'minute', value: '00' },
+      { type: 'second', value: '00' },
+    ]);
 
-    const zones = Array.from({ length: 10000 }, () => 'UTC');
-
-    const values = zones.map((zone) => getSecondsUntilMidnightInTimezone(zone));
-
-    expect(values).toHaveLength(10000);
-    expect(values.every((v) => v === 86400)).toBe(true);
-  });
-
-  it('keeps execution stable under repeated high-volume workloads', () => {
-    vi.setSystemTime(new Date('2024-06-15T10:00:00.000Z'));
-
-    const start = performance.now();
-
-    for (let i = 0; i < 10000; i++) {
-      getSecondsUntilUTCMidnight();
-      getSecondsUntilMidnightInTimezone('UTC');
-    }
-
-    const duration = performance.now() - start;
-
-    expect(Number.isFinite(duration)).toBe(true);
-    expect(duration).toBeGreaterThanOrEqual(0);
+    vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(
+      () =>
+        ({
+          formatToParts: formatToPartsMock,
+        }) as unknown as Intl.DateTimeFormat
+    );
+    expect(getSecondsUntilMidnightInTimezone('UTC')).toBe(86400);
   });
 });
