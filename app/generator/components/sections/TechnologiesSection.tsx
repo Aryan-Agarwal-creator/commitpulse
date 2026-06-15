@@ -39,6 +39,8 @@ export function TechnologiesSection({ selected, onChange }: TechnologiesSectionP
   const [recCategory, setRecCategory] = useState<string>('All');
   const [expandedRecs, setExpandedRecs] = useState<string[]>([]);
 
+  const safeSelected = selected || [];
+
   const isDark = false;
 
   const categories = ['All', ...TECH_CATEGORIES];
