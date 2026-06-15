@@ -7,11 +7,21 @@ import { buildCacheControlHeader } from './cacheControl';
 import '@testing-library/jest-dom/vitest';
 
 /**
- * Since utils/cacheControl.ts is a pure logic utility that doesn't render HTML directly,
- * we satisfy the Accessibility validation Variation by constructing a component that maps
- * its outputs directly to ARIA standard compliance markers and verifying
- * the resulting DOM tree.
+ * Accessibility test harness for buildCacheControlHeader().
+ *
+ * The cacheControl utility is a pure function that generates HTTP cache-control
+ * header values and does not render any UI. To validate accessibility-related
+ * requirements, this component exposes the generated header through semantic
+ * HTML elements, ARIA relationships, focusable controls, and tooltip content.
+ *
+ * This allows the test suite to verify:
+ * - Screen reader compatibility
+ * - ARIA label/description relationships
+ * - Keyboard navigation behavior
+ * - Focus visibility requirements
+ * - Logical heading hierarchy
  */
+const CacheControlAccessibleView = ({ input }: { input: any }) => {
 const CacheControlAccessibleView = ({ input }: { input: any }) => {
   const header = buildCacheControlHeader(input);
 
